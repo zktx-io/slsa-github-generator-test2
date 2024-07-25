@@ -1,0 +1,38 @@
+name: Deploy on Github
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      base64-subjects: ${{ steps.hash.outputs.base64-subjects }}
+    steps:
+      - name: Generate hashes for provenance
+        id: hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Hello World" > provenance
+          {
+            echo "base64-subjects=$(sha256sum provenance | base64 -w0)"
+          } >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: [build]
+    permissions:
+      id-token: write
+      contents: write
+      actions: read
+    uses: zktx-io/slsa-github-generator-test/.github/workflows/generator_generic_slsa3.yml@v2.0.1
+    with:
+      base64-subjects: ${{ needs.build.outputs.base64-subjects }}
+      upload-assets: true
